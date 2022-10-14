@@ -29,30 +29,36 @@ loadMoreBtn.refs.button.addEventListener('click', fetchImages);
 async function onSearch(e) {
   e.preventDefault();
   clearImgContainer();
-
+  loadMoreBtn.hide();
+  
   const query = e.target.elements.searchQuery.value.trim();
   if (!query) {
     Notify.info('Please enter your request!');
+    loadMoreBtn.hide();
     return;
   }
 
   newsApiService.setPage();
-
+  
   try {
     const response = await newsApiService.getResponse(query);
     const { hits, totalHits } = response.data;
     if (!hits.length) {
-      throw new Error(
-        'Sorry, there are no images matching your search query. Please try again.'
-      );
+      Notify.warning('Sorry, there are no images matching your search query. Please try again.');
+      loadMoreBtn.hide();
+      return;
     }
-      renderImages(hits);
-      Notify.success(`Hooray! We found ${totalHits} images.`);
+    
+    Notify.success(`Hooray! We found ${totalHits} images.`);  
+    renderImages(hits);
+    newsApiService.increasePage();
+    refs.input.value = '';
+    if (totalHits > 40 ) {
       loadMoreBtn.show();
-      newsApiService.increasePage();
-      refs.input.value = '';
+    }
   } catch (err) {
-      Notify.warning('Error');
+      Notify.warning('Sorry, site don`t work. Please try again.');
+      loadMoreBtn.hide();
   }
 }
 
@@ -80,12 +86,11 @@ async function fetchImages() {
       params: { page, per_page },
     } = newsApiService;
     if (page > totalHits / per_page) {
-      throw new Error(
-        "We're sorry, but you've reached the end of search results."
-      );
+      loadMoreBtn.hide();
     }
   } catch (err) {
-    Notify.info('Error');
+    Notify.warning('Sorry, site don`t work. Please try again.');
+    loadMoreBtn.hide();
   }
 }
 
