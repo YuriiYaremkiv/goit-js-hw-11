@@ -1,13 +1,13 @@
-//import axios from 'axios';
+import axios from 'axios';
 
-export class SearchQuery {
+export default class NewsApiService {
   baseURL = 'https://pixabay.com/api/';
   params = {
     key: '30566581-29a7d3c7801683e2d838247de',
     image_type: 'photo',
     orientation: 'horizontal',
     safesearch: 'true',
-    per_page: 4,
+    per_page: 40,
   };
   async getResponse(query) {
     if (query) {

@@ -2,84 +2,97 @@ import { Notify } from 'notiflix/build/notiflix-notify-aio';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
 import { createGalleryMarkup } from './templateCardImg';
-import { SearchQuery } from './fetchSearch';
+import NewsApiService from './fetchRequest';
+import LoadMoreBtn from './load-more-btn';
 
-const searchFormRef = document.querySelector('.js-search-form');
-const galleryRef = document.querySelector('.js-gallery');
-const btnLoadRef = document.querySelector('.btn-primary');
-const warnMessage = 'Sorry, there are no images matching your search query. Please try again.';
-
-var lightbox = new SimpleLightbox('.gallery a', { 
+const newsApiService = new NewsApiService();
+const loadMoreBtn = new LoadMoreBtn({
+  selector: '[data-action="load-more"]',
+  hidden: true,
+});
+var lightbox = new SimpleLightbox('.gallery a', {
   captionsData: 'alt',
   captionDelay: 250,
 });
 
+const refs = {
+  formSearch: document.querySelector('#search-form'),
+  input: document.querySelector('[name="searchQuery"]'),
+  btnSearch: document.querySelector('.btn-search'),
+  gallery: document.querySelector('.js-gallery'),
+  btnLoadMore: document.querySelector('[data-action="load-more"]'),
+};
 
-
-
-const searchQuery = new SearchQuery();
-
-
-
-searchFormRef.addEventListener('submit', onSearch);
-btnLoadRef.addEventListener('click', onBtnLoadClick);
-
-
+refs.formSearch.addEventListener('submit', onSearch);
+loadMoreBtn.refs.button.addEventListener('click', fetchImages);
 
 async function onSearch(e) {
   e.preventDefault();
-
-  btnLoadRef.classList.add('isHidden');
-  galleryRef.innerHTML = '';
+  clearImgContainer();
 
   const query = e.target.elements.searchQuery.value.trim();
   if (!query) {
-    //Notify.info('Please, enter key word for search!');
+    Notify.info('Please enter your request!');
     return;
   }
-  searchQuery.setPage();
+
+  newsApiService.setPage();
+
   try {
-    const response = await searchQuery.getResponse(query);
+    const response = await newsApiService.getResponse(query);
     const { hits, totalHits } = response.data;
     if (!hits.length) {
-      throw new Error(warnMessage);
+      throw new Error(
+        'Sorry, there are no images matching your search query. Please try again.'
+      );
     }
-    renderImages(hits);
-    //Notify.success(`Hooray! We found ${totalHits} images.`);
-    btnLoadRef.classList.remove('isHidden');
-    searchQuery.increasePage();
+      renderImages(hits);
+      Notify.success(`Hooray! We found ${totalHits} images.`);
+      loadMoreBtn.show();
+      newsApiService.increasePage();
+      refs.input.value = '';
   } catch (err) {
-    //Notify.warning(err.message);
+      Notify.warning('Error');
   }
 }
 
 function renderImages(arr) {
-  const markup = createGalleryMarkup(arr);
-  galleryRef.insertAdjacentHTML('beforeend', markup);
+  appendImgMarkup(createGalleryMarkup(arr));
   lightbox.refresh();
 }
 
-async function onBtnLoadClick() {
+async function fetchImages() {
+  loadMoreBtn.disable();
   try {
-    const response = await searchQuery.getResponse();
+    const response = await newsApiService.getResponse();
     const { hits, totalHits } = response.data;
     renderImages(hits);
-    searchQuery.increasePage();
+    loadMoreBtn.enable();
+    newsApiService.increasePage();
 
-    const { height } = galleryRef.firstElementChild.getBoundingClientRect();
+    const { height } = refs.gallery.firstElementChild.getBoundingClientRect();
     window.scrollBy({
-      top: height * 2.5,
+      top: height * 3,
       behavior: 'smooth',
     });
 
     const {
       params: { page, per_page },
-    } = searchQuery;
+    } = newsApiService;
     if (page > totalHits / per_page) {
-      btnLoadRef.classList.add('isHidden');
-      throw new Error("We're sorry, but you've reached the end of search results.");
+      throw new Error(
+        "We're sorry, but you've reached the end of search results."
+      );
     }
   } catch (err) {
-    //Notify.info(err.message);
+    Notify.info('Error');
   }
+}
+
+function clearImgContainer() {
+  refs.gallery.innerHTML = '';
+}
+
+function appendImgMarkup(data) {
+  refs.gallery.insertAdjacentHTML('beforeend', data);
 }
